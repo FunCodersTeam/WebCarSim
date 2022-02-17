@@ -136,7 +136,7 @@ function loop(){
 			</div>
 		</div>
 		<script>
-			if (!/Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+			if (/Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
 				document.body.innerHTML = '';
 				let msg = document.createElement('h1');
 				msg.innerHTML = '请使用PC端打开';
@@ -144,7 +144,7 @@ function loop(){
 				msg.style.color = 'red';
 				document.body.appendChild(msg);
 			} else {
-				if (!WEBGL.isWebGLAvailable()) {
+				if (WEBGL.isWebGLAvailable()) {
 					let script = document.createElement("script");
 					script.setAttribute('src', './js/app.js');
 					document.body.appendChild(script);
