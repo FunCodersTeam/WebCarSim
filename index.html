@@ -1,0 +1,158 @@
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="author" content="guidons">
+		<link rel="Shortcut Icon" href="./res/code.svg" type="image/x-icon"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>智能车模拟器</title>
+        <style type="text/css">
+			body { 
+				margin: 0;
+			}
+			div.container {
+				height: 100vh;
+				display: flex;
+				flex-direction: row;
+			}
+			div.container > div.left {
+				width: 70%;
+				overflow: hidden;
+				resize: horizontal;
+				min-width: 50%;
+			}
+			div.container > div.right {
+				flex: 1;
+				overflow: hidden;
+			}
+			div.container > div.right > div.right-container {
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+			}
+			div.container > div.right > div.right-container > div.top {
+				height: 50%;
+				overflow: hidden;
+				resize: vertical;
+			}
+			div.container > div.right > div.right-container > div.bottom {
+				flex: 1;
+				overflow-y: scroll;
+				background-color: black;
+				border: 3px solid white;
+				color: green;
+			}
+			div#button-container {
+				display: flex;
+				flex-direction: row;
+				background-color: #18191a;
+			}
+			button {
+				height: 30px;
+				color: black;
+				border-radius: 3px;
+				border-width: 3px;
+				margin: 3px 10px 3px 10px;
+				outline: none;
+				font-family: auto;
+				font-size: 17px;
+				text-align: center;
+				cursor: pointer;
+				flex: auto;
+			}
+			button#b1 {
+				background-color: rgb(50 115 220);
+			}
+			button#b2 {
+				background-color: rgb(170 0 34);
+			}
+			button#b3 {
+				background-color: rgb(152 121 0);
+			}
+			button#b1:hover {
+				background-color: white;
+			}
+			button#b2:hover {
+				background-color: white;
+			}
+			button#b3:hover {
+				background-color: white;
+			}
+			div#echarts {
+				position: absolute;
+				bottom: 0px;
+				left: 10px;
+				/* border: 3px solid #888888;
+				border-radius: 8%;
+				opacity: 0.6;  */
+			}
+			canvas#fpv, canvas#fpv_img {
+				position: absolute;
+				bottom: 10px;
+				z-index: 10;
+			}
+        </style>
+		<script src="./js/libs/three/three.min.js"></script>
+		<script src="./js/libs/three/webgl-check.min.js"></script>
+		<script src="./js/libs/echarts/echarts.min.js"></script>
+		<script src="./js/libs/three/stat.min.js"></script>		
+        <script src="./js/libs/ace/ace.js"></script>
+        <script src="./js/libs/ace/ext-language_tools.js"></script>
+		<script src="./js/libs/three/lil-gui.min.js"></script>
+		<script src="./js/libs/cannon/cannon.min.js"></script>
+		<script src="./js/libs/three/OrbitControls.min.js"></script>
+		<script src="./js/libs/three/TransformControls.min.js"></script>
+    </head>
+    <body>
+		<div class="container">
+			<input type="file" id="file" accept="image/*" onchange="control.get_path()" hidden>
+			<div class="left">
+				<canvas id="fpv" width="320px" height="240px"></canvas>
+				<canvas id="fpv_img" width="320px" height="240px" hidden></canvas>
+				<div id="echarts"></div>
+			</div>
+			<div class="right">
+				<div class="right-container">
+					<div class="top" id="editor">function setup(){
+	loop_ms(1000);
+}
+i = 0;
+function loop(){
+	pid_show((i+=1),1)
+	let src = img2Mat(get_img());
+    let dst = new cv.Mat();
+    cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+    img_show(dst);
+    src.delete();
+    dst.delete();
+}					</div>
+					<div id="button-container">
+						<button id='b1'>运行</button>
+						<button id='b2'>停止</button>
+						<button id='b3' onclick="document.querySelector('.bottom').innerText =''">清除</button>
+					</div>
+					<div class="bottom">
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+			if (!/Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+				document.body.innerHTML = '';
+				let msg = document.createElement('h1');
+				msg.innerHTML = '请使用PC端打开';
+				msg.style.textAlign = 'center';
+				msg.style.color = 'red';
+				document.body.appendChild(msg);
+			} else {
+				if (!WEBGL.isWebGLAvailable()) {
+					let script = document.createElement("script");
+					script.setAttribute('src', './js/app.js');
+					document.body.appendChild(script);
+				} else {
+					document.body.innerHTML = '';
+					document.body.appendChild(WEBGL.getWebGLErrorMessage());
+				}
+			}
+		</script>
+	</body>
+</html>
