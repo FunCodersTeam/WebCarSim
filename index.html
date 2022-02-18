@@ -113,11 +113,9 @@
 			<div class="right">
 				<div class="right-container">
 					<div class="top" id="editor">function setup(){
-	loop_ms(1000);
+	loop_ms(100);
 }
-i = 0;
 function loop(){
-	pid_show((i+=1),1)
 	let src = img2Mat(get_img());
     let dst = new cv.Mat();
     cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);

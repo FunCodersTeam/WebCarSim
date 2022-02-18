@@ -1,6 +1,5 @@
 // web worker
 var worker, worker_ready = false;
-const img = new Image();
 const log = document.querySelector('.bottom');
 
 function print(str) {
@@ -11,7 +10,9 @@ const message_process = msg => {
     msg = msg.data;
     switch (msg.type) {
         case 'error': 
-            print('runtime error: ' + msg.data);
+            print('[RUNTIME ERROR]' + msg.data);
+            car_body.velocity.set(0, 0, 0);
+            drive(0, 0, 0);
             break;
         case 'get':
             worker_ready = true;
@@ -42,7 +43,7 @@ const worker_creater = () => {
         worker = new Worker('./js/worker.js');
         worker.onmessage = message_process;
         worker.onerror = e => {
-            print(['system error: Line ', e.lineno, ' in ', e.filename, ': ', e.message, '\n'].join(''));
+            print(['[SYSTEM ERROR] Line ', e.lineno, ' in ', e.filename, ': ', e.message].join(''));
             worker.terminate();
             worker = undefined;
         };
@@ -55,15 +56,15 @@ const worker_creater = () => {
 const editorDom = document.getElementById('editor');
 document.getElementById('b1').addEventListener('click', () => {
     if (!worker) worker_creater();
+    if (fpv_canvas.hidden) fpv_canvas.click();
     worker.postMessage({type:'code',data:editorDom.innerText});
+    chart_reset();
 });
 document.getElementById('b2').addEventListener('click', () => {
     worker?.terminate();
     worker = undefined;
-    option.series[0].data = [[0,0]];
-    option.series[0].markLine.label.formatter = '0';
-    option.series[0].markLine.data[0].yAxis = 0;
-    pidChart.setOption(option, true);
+    car_body.velocity.set(0, 0, 0);
+    drive(0, 0, 0);
 });
 ace.require("ace/ext/language_tools");  
 ace.require("ace/edit_session").EditSession.prototype.$useWorker = false;
@@ -145,6 +146,12 @@ const option = {
         }
     ]
 };
+const chart_reset = () => {
+    option.series[0].data = [[0,0]];
+    option.series[0].markLine.label.formatter = '0';
+    option.series[0].markLine.data[0].yAxis = 0;
+    pidChart.setOption(option, true);
+}
 option && pidChart.setOption(option);
 // stat
 const simulator = document.querySelector('.left');
@@ -454,16 +461,19 @@ world.addEventListener('postStep', function(){
     }
 });
 
+const car_reset = () => {
+    car_body.position.set(control.car_position.position[0] , 5, control.car_position.position[2]);
+    car_body.quaternion.set(...control.car_position.quaternion);
+    car_body.velocity.set(0, 0, 0);
+    car_body.angularVelocity.set(0, 0, 0);
+}
+
 function updatePhysics() {
     world.step(1/60);
     ground.position.copy(ground_body.position);
     ground.quaternion.copy(ground_body.quaternion);
-    if (group.position.y < -10 || group.rotation.x > 1.5) {
-        car_body.position.set(control.car_position.position[0] , 5, control.car_position.position[2]);
-        car_body.quaternion.set(control.car_position.quaternion[0], control.car_position.quaternion[1], control.car_position.quaternion[2], control.car_position.quaternion[3]);
-        car_body.velocity.set(0, 0, 0);
-        car_body.angularVelocity.set(0, 0, 0);
-    }
+    if (group.position.y < -10 || group.rotation.x > 1.5) 
+        car_reset();
     group.position.copy(car_body.position);
     group.quaternion.copy(car_body.quaternion);
 }
@@ -547,7 +557,8 @@ const control = {
     },
     stop_flag: false,
     stop: () => (control.stop_flag = !control.stop_flag) ? stop.name('继续') : stop.name('暂停'),
-    view: () => window.open("view-source:" + window.location)
+    reset: () => car_reset() || chart_reset() || drive(0, 0, 0),
+    view: () => window.open("https://gitee.com/guidons/simulator")
 }
 const car_settings = gui.addFolder('车辆参数').close();
 car_settings.add(control, 'car_begin').name('设置初始位置');
@@ -613,6 +624,7 @@ const chart = dom_setting.add(control, 'chart');
 const code = dom_setting.add(control, 'editor');
 const fullscreen = dom_setting.add(control, 'fullscreen');
 const stop = gui.add(control, 'stop');
+gui.add(control, 'reset').name('重置');
 gui.add(control, 'view').name("项目源码");
 chart.name('关闭示波器');
 code.name('关闭编辑器');
