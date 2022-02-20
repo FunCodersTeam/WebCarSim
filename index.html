@@ -112,17 +112,73 @@
 			</div>
 			<div class="right">
 				<div class="right-container">
-					<div class="top" id="editor">function setup(){
+					<div class="top" id="editor">/* demo */
+// 全局变量
+let P = 2.5, D = 1;
+let speed = 100, last_error = 0, last_center = -1;
+// setup函数仅执行一次,完成初始化
+function setup(){
+	print("开始");
+	// 设置loop函数为100ms执行一次
 	loop_ms(100);
 }
+// loop函数会周期执行
 function loop(){
+	// 获取图片ImageData,并转换为opencv格式
 	let src = img2Mat(get_img());
-    let dst = new cv.Mat();
-    cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
-    img_show(dst);
-    src.delete();
-    dst.delete();
-}					</div>
+	// 创建一个图像
+	let dst = new cv.Mat();
+	// 转换灰度图
+	cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+	// 自适应阈值二值化
+	cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 3, 2);
+	// 裁剪ROI图像
+	src = dst.roi(new cv.Rect(0, dst.rows/3, dst.cols, 10));
+	let left = 0, right = src.cols-1, center = src.cols/2;
+	if (last_center == -1) {
+		last_center = center;
+	}
+	// 左右边界搜索
+	for (let i = last_center; i < src.cols; i++) {
+		if (src.ucharAt(5, i) == 0){
+			right = i;
+			break;
+		}
+	}
+	for (let i = last_center; i >= 0; i--) {
+		if (src.ucharAt(5, i) == 0){
+			left = i;
+			break;
+		}
+	}
+	// 误差计算
+	let error = Math.abs(right + left) / 2 - center;
+	// pid示波器显示
+	pid_show(error, 0);
+	// pid计算
+	let duty = P * error + D * (error - last_error);
+	// 舵机限幅
+	if (duty > 500) {
+		duty = 500;
+	} else if (duty < -500) {
+		duty = -500;
+	}
+	// 左右电机舵机PWM输出
+	control(speed, speed, duty);
+	last_error = error;
+	last_center = center;
+	// 转换为RGBA图像
+	cv.cvtColor(dst, dst, cv.COLOR_GRAY2RGBA);
+	// 画线
+	cv.line(dst, new cv.Point(left, dst.rows/3-5), new cv.Point(left, dst.rows/3+15), new cv.Scalar(255, 0, 0, 255), 2);
+	cv.line(dst, new cv.Point(right, dst.rows/3-5), new cv.Point(right, dst.rows/3+15), new cv.Scalar(0, 255, 0, 255), 2);
+	cv.rectangle(dst,{x:0,y:dst.rows/3},{x:dst.cols,y:dst.rows/3+10},[0,0,255,255]);
+	// 显示图像
+	img_show(dst);
+	// 手动释放内存
+	src.delete();
+	dst.delete();
+}				</div>
 					<div id="button-container">
 						<button id='b1'>运行</button>
 						<button id='b2'>停止</button>

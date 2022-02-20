@@ -1,5 +1,5 @@
 // self
-var _img, _lock = false, _date = new Date(), _show = false; 
+var _img, _lock = false, _date = new Date(), _show = false, _str = ""; 
 const _time = _date.getTime();
 delete _date;
 function _imageDataVRevert(sourceData, newData) {
@@ -78,7 +78,14 @@ function _waitForOpencv(callbackFn, waitTimeMs = 30000, stepTimeMs = 100) {
       }
     }, stepTimeMs);
 }
-  
+ 
+const _flush = () => {
+  if (_str.length > 0) {
+    self.postMessage({type:"log",data:_str});
+    _str = "";
+  }
+}
+
 self.importScripts('./libs/opencv/opencv.min.js');
 
 // API
@@ -95,7 +102,7 @@ const loop_ms = (() => {
         throw "loop_ms: parameter must be a number greater than 0";
     };
 })();
-const print = msg => self.postMessage({type:"log",data:msg});
+const print = msg => _str += msg;
 const get_img = () => {
     self.postMessage({type:"get"})
     return _img;
@@ -136,7 +143,7 @@ self.addEventListener('message', _msg => {
             _waitForOpencv(function (success) {
                 if (success)
                     try { 
-                        eval(_msg.data + "setup();setInterval(loop,loop_ms('get'))");
+                        eval(_msg.data + "setup();_flush();setInterval(()=>loop()||_flush(),loop_ms('get'))");
                     } catch (e) {
                         self.postMessage({type:"error",data:e});
                         _lock = false;

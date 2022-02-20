@@ -3,14 +3,17 @@ var worker, worker_ready = false;
 const log = document.querySelector('.bottom');
 
 function print(str) {
+    if (log.innerText.length > 5000)
+        log.innerText = '';
     log.innerText += str + '\n';
+    log.scrollTop = log.scrollHeight;
 }
 
 const message_process = msg => {
     msg = msg.data;
     switch (msg.type) {
         case 'error': 
-            print('[RUNTIME ERROR]' + msg.data);
+            print('[RUNTIME ERROR] ' + msg.data);
             car_body.velocity.set(0, 0, 0);
             drive(0, 0, 0);
             break;
@@ -29,7 +32,9 @@ const message_process = msg => {
             }
             break;
         case 'pid':
-            option.series[0].data = msg.data;
+            if (chart_data.length > 1000) chart_data = [[0,0]]; 
+            chart_data.push(msg.data);
+            option.series[0].data = chart_data;
             option.series[0].markLine.label.formatter = msg.target.toString();
             option.series[0].markLine.data[0].yAxis = msg.target;
             pidChart.setOption(option);
@@ -43,7 +48,7 @@ const worker_creater = () => {
         worker = new Worker('./js/worker.js');
         worker.onmessage = message_process;
         worker.onerror = e => {
-            print(['[SYSTEM ERROR] Line ', e.lineno, ' in ', e.filename, ': ', e.message].join(''));
+            print(['[SYSTEM ERROR] ', e.message].join(''));
             worker.terminate();
             worker = undefined;
         };
@@ -57,7 +62,7 @@ const editorDom = document.getElementById('editor');
 document.getElementById('b1').addEventListener('click', () => {
     if (!worker) worker_creater();
     if (fpv_canvas.hidden) fpv_canvas.click();
-    worker.postMessage({type:'code',data:editorDom.innerText});
+    worker.postMessage({type:'code',data:editor.getValue()});
     chart_reset();
 });
 document.getElementById('b2').addEventListener('click', () => {
@@ -79,6 +84,7 @@ editor.onFocus = () => document.onkeydown = document.onkeyup = null;
 // echarts
 const chartDom = document.getElementById('echarts');
 const pidChart = echarts.init(chartDom, 'dark');
+var chart_data = [[0,0]];
 const option = {
     title: {
         top: '5%',
@@ -137,7 +143,7 @@ const option = {
                     formatter: '0'
                 },
             },
-            data: [[0,0]],
+            data: chart_data,
             lineStyle: {
                 color: '#0f0'
             },
@@ -147,10 +153,12 @@ const option = {
     ]
 };
 const chart_reset = () => {
-    option.series[0].data = [[0,0]];
+    pidChart.clear();
+    chart_data = [[0,0]];
+    option.series[0].data = chart_data;
     option.series[0].markLine.label.formatter = '0';
     option.series[0].markLine.data[0].yAxis = 0;
-    pidChart.setOption(option, true);
+    pidChart.setOption(option);
 }
 option && pidChart.setOption(option);
 // stat
@@ -535,6 +543,7 @@ const control = {
     fpv_helper: false,
     fpv_degree: (2 * Math.PI - car_size.fpv_degree) / Math.PI * 180,
     fpv_fov: 75,
+    fpv_position: pole.position.x,
     fullscreen: function() {
         if (document.fullscreenElement) {
             fullscreen.name('全屏模式');
@@ -595,14 +604,21 @@ const fpv_setting = gui.addFolder('相机参数').close();
 fpv_setting.add(control, 'fpv_helper').name('辅助对象').onChange( value => value ? scene.add(fpv_helper) : scene.remove(fpv_helper) );
 fpv_setting.add(control, 'fpv_height', 5, 50).name('高度(cm)').step(1).onChange( value => {
     pole.scale.y = value / pole.geometry.parameters.height;
-    pole.position.set(0, 0, value / 2);
-    fpv_camera.position.set(1, 0, value);
+    pole.position.z = value / 2;
+    fpv_camera.position.z = value;
     fpv.position.z = value - 1.3 * Math.cos(control.fpv_degree * Math.PI / 180)
+});
+fpv_setting.add(control, 'fpv_position', 0, car_size.length / 2 - 2).name('位置(cm)').step(1).onChange( value => {
+    pole.position.x = value;
+    fpv_camera.position.x = value + 1;
+    fpv.position.x = fpv_camera.position.x + 1.3 * Math.sin(control.fpv_degree * Math.PI / 180);
+    xyz.position.set(fpv_camera.position.x + control.fpv_height * Math.tan(control.fpv_degree * Math.PI / 180), 0, 0);
+    fpv.lookAt(xyz.getWorldPosition()); 
 });
 fpv_setting.add(control, 'fpv_degree', 1, 89).name('角度(°)').step(1).onChange( value => {
     fpv_camera.rotation.z = 2 * Math.PI - value * Math.PI / 180;
-    fpv.position.set(1 + 1.3 * Math.sin(value * Math.PI / 180), 0, control.fpv_height - 1.3 * Math.cos(value * Math.PI / 180));
-    xyz.position.set(1 + control.fpv_height * Math.tan(value * Math.PI / 180), 0, 0);
+    fpv.position.set(fpv_camera.position.x + 1.3 * Math.sin(value * Math.PI / 180), 0, control.fpv_height - 1.3 * Math.cos(value * Math.PI / 180));
+    xyz.position.set(fpv_camera.position.x + control.fpv_height * Math.tan(value * Math.PI / 180), 0, 0);
     fpv.lookAt(xyz.getWorldPosition());
 });
 fpv_setting.add(control, 'fpv_fov', 20, 150).name('垂直视野角度(°)').step(1).onChange( value => {
