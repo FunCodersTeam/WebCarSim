@@ -152,7 +152,7 @@ function loop(){
 		}
 	}
 	// 误差计算
-	let error = Math.abs(right + left) / 2 - center;
+	let error = left + 80 - center;
 	// pid示波器显示
 	pid_show(error, 0);
 	// pid计算
@@ -164,9 +164,11 @@ function loop(){
 		duty = -500;
 	}
 	// 左右电机舵机PWM输出
-	control(speed, speed, duty);
-	last_error = error;
-	last_center = center;
+	if (right - left < 220) {
+		control(speed, speed, duty);
+		last_error = error;
+		last_center = center;
+	}
 	// 转换为RGBA图像
 	cv.cvtColor(dst, dst, cv.COLOR_GRAY2RGBA);
 	// 画线
