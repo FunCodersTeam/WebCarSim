@@ -62,6 +62,11 @@ const editorDom = document.getElementById('editor');
 document.getElementById('b1').addEventListener('click', () => {
     if (!worker) worker_creater();
     if (fpv_canvas.hidden) fpv_canvas.click();
+    if (control.model && control.weights && control.label) {
+        worker.postMessage({type:'model',data:control.model});
+        worker.postMessage({type:'weights',data:control.weights});
+        worker.postMessage({type:'label',data:control.label});
+    }
     worker.postMessage({type:'code',data:editor.getValue()});
     chart_reset();
 });
@@ -291,6 +296,13 @@ pole.position.set(0, 0, car_size.pole_height / 2);
 pole.castShadow = true;
 group.add( pole );
 
+geometry = new THREE.CylinderGeometry( 0.5, 0.5, 0.1, 32 )
+const lever = new THREE.Mesh(geometry, material);
+lever.rotation.z = Math.PI / 2.0;
+lever.position.set(0, 0, car_size.pole_height);
+lever.castShadow = true;
+group.add( lever );
+
 material = new THREE.MeshLambertMaterial({color: 0x0000ff});
 geometry = new THREE.CylinderGeometry( 1.5, 1, 2.6, 32 );
 const fpv_camera = new THREE.Mesh( geometry, material );
@@ -416,9 +428,7 @@ function drive(l_pwm, r_pwm, servo_pwm) {
 }
 
 function handler(event){
-
     var up = (event.type =='keyup');
-
     if (!up && event.type !== 'keydown'){
         return;
     }
@@ -426,36 +436,24 @@ function handler(event){
     vehicle.setBrake(0, 1);
     vehicle.setBrake(0, 2);
     vehicle.setBrake(0, 3);
-
     switch(event.keyCode){
-
-    case 87://forward
-    vehicle.applyEngineForce(up ? 0 : -wheel_params.maxForce, 2);
-    vehicle.applyEngineForce(up ? 0 : -wheel_params.maxForce, 3);
-    break;
-
-    case 83: //backward
-    
-    vehicle.applyEngineForce(up ? 0 : wheel_params.maxForce, 2);
-    vehicle.applyEngineForce(up ? 0: wheel_params.maxForce, 3);
-    break;
-
-    case 68: //right
-    vehicle.setSteeringValue(up ? 0 : -wheel_params.maxSteerVal, 0);
-    vehicle.setSteeringValue(up ? 0 : -wheel_params.maxSteerVal, 1);
-    break;
-
-    case 65: //left
-    vehicle.setSteeringValue(up ? 0 : wheel_params.maxSteerVal, 0);
-    vehicle.setSteeringValue(up ? 0 : wheel_params.maxSteerVal, 1);
-    break;
-
-
-    
+        case 87://forward
+            vehicle.applyEngineForce(up ? 0 : -wheel_params.maxForce, 2);
+            vehicle.applyEngineForce(up ? 0 : -wheel_params.maxForce, 3);
+            break;
+        case 83: //backward
+            vehicle.applyEngineForce(up ? 0 : wheel_params.maxForce, 2);
+            vehicle.applyEngineForce(up ? 0: wheel_params.maxForce, 3);
+            break;
+        case 68: //right
+            vehicle.setSteeringValue(up ? 0 : -wheel_params.maxSteerVal, 0);
+            vehicle.setSteeringValue(up ? 0 : -wheel_params.maxSteerVal, 1);
+            break;
+        case 65: //left
+            vehicle.setSteeringValue(up ? 0 : wheel_params.maxSteerVal, 0);
+            vehicle.setSteeringValue(up ? 0 : wheel_params.maxSteerVal, 1);
+            break;
     }
-
-
-    
 }
 
 world.addEventListener('postStep', function(){
@@ -484,6 +482,19 @@ function updatePhysics() {
         car_reset();
     group.position.copy(car_body.position);
     group.quaternion.copy(car_body.quaternion);
+}
+
+const downloader = document.getElementById('download');
+function download() {
+    if (control.img_ready) {
+        if (control.camera == "第一人称") {
+            downloader.href = fpv_canvas.toDataURL('image/png');
+        } else {
+            downloader.href = renderer.domElement.toDataURL('image/png');
+        }
+        downloader.click();
+        control.img_ready = false;
+    }
 }
 
 function sendMat() {
@@ -540,10 +551,26 @@ const control = {
     fpv_resolution: '320x240',
     fpv_resolution_data: [320, 240],
     fpv_height: car_size.pole_height,
+    fpv_length: 0,
     fpv_helper: false,
     fpv_degree: (2 * Math.PI - car_size.fpv_degree) / Math.PI * 180,
     fpv_fov: 75,
     fpv_position: pole.position.x,
+    camera: "第一人称",
+    img_ready: false,
+    timer: null,
+    time: 1000,
+    export_manual: () => control.img_ready = true,
+    export_timer: () => {
+        if (control.timer) {
+            timer.name("定时导出");
+            clearInterval(control.timer);
+            control.timer = null;
+        } else {
+            timer.name("结束定时");
+            control.timer = setInterval(() => control.img_ready = true, control.time);
+        }
+    },
     fullscreen: function() {
         if (document.fullscreenElement) {
             fullscreen.name('全屏模式');
@@ -563,6 +590,35 @@ const control = {
             code.name("关闭编辑器");
             simulator.style.width = .7 * window.innerWidth;
         }
+    },
+    model_loader: () => document.getElementById('model').click(),
+    model: null,
+    weights: null,
+    label: null,
+    get_model: () => {
+        let fileDom = document.getElementById('model');
+        let files = fileDom.files;
+        fileDom.outerHTML = fileDom.outerHTML;
+        if (files.length == 0) return;
+        control.model = files[0];
+        document.getElementById('weights').click();
+    },
+    get_weights: () => {
+        let fileDom = document.getElementById('weights');
+        let files = fileDom.files;
+        fileDom.outerHTML = fileDom.outerHTML;
+        if (files.length == 0) return;
+        control.weights = files[0];
+        document.getElementById('label').click();
+    },
+    get_label: () => {
+        let fileDom = document.getElementById('label');
+        let files = fileDom.files;
+        fileDom.outerHTML = fileDom.outerHTML;
+        if (files.length == 0) return;        
+        let reader = new FileReader()
+        reader.readAsText(files[0], 'utf8')
+        reader.onload = () => control.label = reader.result.trim().split('\n');
     },
     stop_flag: false,
     stop: () => (control.stop_flag = !control.stop_flag) ? stop.name('继续') : stop.name('暂停'),
@@ -605,12 +661,21 @@ fpv_setting.add(control, 'fpv_helper').name('辅助对象').onChange( value => v
 fpv_setting.add(control, 'fpv_height', 5, 50).name('高度(cm)').step(1).onChange( value => {
     pole.scale.y = value / pole.geometry.parameters.height;
     pole.position.z = value / 2;
-    fpv_camera.position.z = value;
+    fpv_camera.position.z = lever.position.z = value;
     fpv.position.z = value - 1.3 * Math.cos(control.fpv_degree * Math.PI / 180)
 });
+fpv_setting.add(control, 'fpv_length', 0, 2 * car_size.length).name('长度(cm)').step(1).onChange( value => {
+    fpv.position.x = value + pole.position.x;
+    fpv_camera.position.x = fpv.position.x + 0.5;
+    lever.scale.y = value / lever.geometry.parameters.height;
+    lever.position.x = value / 2 - 0.5 + pole.position.x;
+    fpv.position.x = fpv_camera.position.x + 1.3 * Math.sin(control.fpv_degree * Math.PI / 180);
+});
+
 fpv_setting.add(control, 'fpv_position', 0, car_size.length / 2 - 2).name('位置(cm)').step(1).onChange( value => {
     pole.position.x = value;
-    fpv_camera.position.x = value + 1;
+    lever.position.x = control.fpv_length / 2 - 0.5 + value;
+    fpv_camera.position.x = value + control.fpv_length + 0.5;
     fpv.position.x = fpv_camera.position.x + 1.3 * Math.sin(control.fpv_degree * Math.PI / 180);
     xyz.position.set(fpv_camera.position.x + control.fpv_height * Math.tan(control.fpv_degree * Math.PI / 180), 0, 0);
     fpv.lookAt(xyz.getWorldPosition()); 
@@ -635,10 +700,17 @@ fpv_setting.add(control, 'fpv_resolution', ['480x360', '320x240', '160x120']).na
     fpv_canvas.updatePosition();
 });
 
+const img_export = gui.addFolder('导出图片').close();
+img_export.add(control, "camera", ['第一人称', '第三人称']).name("相机选择");
+img_export.add(control, "export_manual").name('手动导出');
+const timer = img_export.add(control, 'export_timer').name('定时导出');
+img_export.add(control, 'time', 10, 3000).name('定时时间(ms)').step(10);
+
 const dom_setting = gui.addFolder('界面控制').close();
 const chart = dom_setting.add(control, 'chart');
 const code = dom_setting.add(control, 'editor');
 const fullscreen = dom_setting.add(control, 'fullscreen');
+gui.add(control, 'model_loader').name('导入模型');
 const stop = gui.add(control, 'stop');
 gui.add(control, 'reset').name('重置');
 gui.add(control, 'view').name("项目源码");
@@ -675,6 +747,7 @@ const last = new Uint16Array(4);
     renderer.render( scene, camera );
     fpv_renderer.render( scene, fpv );
     sendMat();
+    download();
     // renderer.setScissorTest( true );
     // renderer.setScissor(simulator.offsetWidth-control.fpv_resolution_data[0]-10, 10, 
     //     control.fpv_resolution_data[0], control.fpv_resolution_data[1]);

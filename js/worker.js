@@ -1,5 +1,5 @@
 // self
-var _img, _lock = false, _date = new Date(), _show = false, _str = ""; 
+var _img, _lock = false, _date = new Date(), _show = false, _str = "", _model = _weights = _label = null; 
 const _time = _date.getTime();
 delete _date;
 function _imageDataVRevert(sourceData, newData) {
@@ -133,6 +133,14 @@ const pid_show = (data, target = 0) => {
     let date = new Date();
     self.postMessage({type:"pid",data:[date.getTime()-_time,data],target:target});
 }
+const get_label = () => {
+    if (_label instanceof Array) return _label;
+    return [];
+}
+const get_model = () => {
+    if ((_model instanceof File)&&(_weights instanceof File)) return [_model,_weights];
+    return []
+}
 // listener
 self.addEventListener('message', _msg => {
     _msg = _msg.data;
@@ -157,6 +165,15 @@ self.addEventListener('message', _msg => {
             break;
         case 'show':
             _show = _msg.data;
+            break;
+        case 'model':
+            _model = _msg.data;
+            break;
+        case 'weights':
+            _weights = _msg.data;
+            break;
+        case 'label':
+            _label = _msg.data;
             break;
         default: break;
     }

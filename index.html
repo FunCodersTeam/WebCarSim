@@ -105,6 +105,10 @@
     <body>
 		<div class="container">
 			<input type="file" id="file" accept="image/*" onchange="control.get_path()" hidden>
+			<input type="file" id="model" accept="application/json" onchange="control.get_model()" hidden>
+			<input type="file" id="weights" accept="application/octet-stream" onchange="control.get_weights()" hidden>
+			<input type="file" id="label" accept="text/plain" onchange="control.get_label()" hidden>
+			<a id="download" download="download.png" hidden></a>
 			<div class="left">
 				<canvas id="fpv" width="320px" height="240px"></canvas>
 				<canvas id="fpv_img" width="320px" height="240px" hidden></canvas>
@@ -112,8 +116,47 @@
 			</div>
 			<div class="right">
 				<div class="right-container">
-					<div class="top" id="editor">/* demo */
-// 全局变量
+					<div class="top" id="editor">// // 导入tensorflow.js
+// importScripts("https://cdn.staticfile.org/tensorflow/3.14.0/tf.min.js")
+// var model;
+// const list = get_label(); 
+// function preprocess(imageTensor) {
+// 	const widthToHeight = imageTensor.shape[1] / imageTensor.shape[0];
+// 	let squareCrop;
+// 	if (widthToHeight > 1) {
+// 	const heightToWidth = imageTensor.shape[0] / imageTensor.shape[1];
+// 	const cropTop = (1-heightToWidth) / 2;
+// 	const cropBottom = 1 - cropTop;
+// 	squareCrop = [[cropTop, 0, cropBottom, 1]];
+// 	} else {
+// 	const cropLeft = (1-widthToHeight) / 2;
+// 	const cropRight = 1 - cropLeft;
+// 	squareCrop = [[0, cropLeft, 1, cropRight]];
+// 	}
+// 	// Expand image input dimensions to add a batch dimension of size 1.
+// 	const crop = tf.image.cropAndResize(
+// 		tf.expandDims(imageTensor), squareCrop, [0], [224, 224]);
+// 	return crop.div(255);
+// }
+// async function setup(){
+// 	print("开始");
+// 	// 设置loop函数为1000ms执行一次
+// 	loop_ms(1000);
+// 	// 加载模型
+// 	model = await tf.loadGraphModel(tf.io.browserFiles(get_model()));
+// }
+// // loop函数会周期执行
+// function loop(){
+// 	// ImageData转为Tensor
+// 	img = tf.browser.fromPixels(get_img())
+// 	// 预处理
+// 	pix = preprocess(img);
+// 	// 预测
+// 	const res = model.predict(pix).dataSync();
+// 	res.forEach((score, pred) => {
+// 		if (score > 0.5) print(list[pred]);
+// 	})
+// }
 let P = 2.5, D = 1;
 let speed = 100, last_error = 0, last_center = -1;
 // setup函数仅执行一次,完成初始化
